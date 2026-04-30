@@ -2,16 +2,20 @@ name: Build APK
 on: [push]
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    container: kivy/buildozer
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Build APK
-        run: yes | buildozer android debug
-        env:
-          BUILDOZER_WARN_ON_ROOT: 0
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          buildozer_version: stable
+          
       - name: Upload APK
-        uses: actions/upload-artifact@4
+        uses: actions/upload-artifact@v4
         with:
           name: ball-blast-apk
           path: bin/*.apk
