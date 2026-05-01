@@ -1,6 +1,6 @@
 """
 screens.py - All screens for Ball Blast.
-Clean, bug-free implementation.
+Uses separate screens instead of overlays to avoid touch issues on Android.
 """
 
 from kivy.uix.screenmanager import Screen
@@ -13,7 +13,7 @@ from kivy.clock import Clock
 from kivy.graphics import Color, Rectangle, RoundedRectangle
 
 from config import (
-    GRID_COLS, GRID_ROWS, SUB_STEPS,
+    GRID_COLS, GRID_ROWS,
     C_HUD_BG, C_BTN_PLAY, C_BTN_DARK, C_BTN_DANGER,
 )
 from save import (
@@ -26,16 +26,15 @@ from cannon import Cannon
 from game_widget import GameWidget
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helper ────────────────────────────────────────────────────────────────────
 
-def styled_btn(text, font_size='20sp', bg=(0.2, 0.2, 0.5, 1),
-               size_hint=(1, None), height=52, bold=False):
-    btn = Button(
+def make_btn(text, bg, font_size='20sp', bold=False,
+             size_hint=(1, None), height=52):
+    return Button(
         text=text, font_size=font_size, bold=bold,
         background_color=bg, background_normal='',
         size_hint=size_hint, height=height,
     )
-    return btn
 
 
 # ── Home Screen ───────────────────────────────────────────────────────────────
@@ -45,8 +44,6 @@ class HomeScreen(Screen):
         super().__init__(**kwargs)
 
         root = FloatLayout()
-
-        # Dark background
         with root.canvas.before:
             Color(0.04, 0.07, 0.18, 1)
             self._bg = Rectangle(pos=root.pos, size=root.size)
@@ -63,8 +60,7 @@ class HomeScreen(Screen):
 
         self.hs_label = Label(
             text=f'Best: {load_high_score()}',
-            font_size='18sp',
-            color=(0.95, 0.85, 0.10, 1),
+            font_size='18sp', color=(0.95, 0.85, 0.10, 1),
             halign='right', text_size=(400, None),
         )
         layout.add_widget(self.hs_label)
@@ -73,8 +69,7 @@ class HomeScreen(Screen):
             text='BALL BLAST',
             font_size='52sp', bold=True,
             color=(1.0, 0.55, 0.10, 1),
-            halign='center',
-            size_hint=(1, 0.35),
+            halign='center', size_hint=(1, 0.35),
         ))
 
         layout.add_widget(Label(
@@ -85,18 +80,13 @@ class HomeScreen(Screen):
 
         layout.add_widget(Widget(size_hint=(1, 0.05)))
 
-        play_btn = styled_btn(
-            'PLAY', font_size='30sp', bold=True,
-            bg=C_BTN_PLAY, size_hint=(1, None), height=64,
-        )
+        play_btn = make_btn('PLAY', C_BTN_PLAY,
+                            font_size='30sp', bold=True, height=64)
         play_btn.bind(on_press=lambda *_: setattr(
             self.manager, 'current', 'game'))
         layout.add_widget(play_btn)
 
-        settings_btn = styled_btn(
-            'Settings', font_size='20sp',
-            bg=C_BTN_DARK, size_hint=(1, None), height=50,
-        )
+        settings_btn = make_btn('Settings', C_BTN_DARK, height=50)
         settings_btn.bind(on_press=lambda *_: setattr(
             self.manager, 'current', 'settings'))
         layout.add_widget(settings_btn)
@@ -129,12 +119,12 @@ class SettingsScreen(Screen):
             pos_hint={'center_x': 0.5, 'center_y': 0.5},
         )
 
-        # Header
         top = BoxLayout(size_hint=(1, None), height=52, spacing=12)
-        back = styled_btn('Back', font_size='18sp',
-                          bg=C_BTN_DARK, size_hint=(None, 1), height=52)
+        back = make_btn('Back', C_BTN_DARK,
+                        font_size='18sp', size_hint=(None, 1), height=52)
         back.width = 100
-        back.bind(on_press=lambda *_: setattr(self.manager, 'current', 'home'))
+        back.bind(on_press=lambda *_: setattr(
+            self.manager, 'current', 'home'))
         top.add_widget(back)
         top.add_widget(Label(
             text='Settings', font_size='26sp', bold=True,
@@ -144,30 +134,30 @@ class SettingsScreen(Screen):
 
         layout.add_widget(Widget(size_hint=(1, 0.05)))
 
-        reset_hs = styled_btn('Reset High Score', bg=C_BTN_DANGER)
+        reset_hs = make_btn('Reset High Score', C_BTN_DANGER)
         reset_hs.bind(on_press=lambda *_: save_high_score(0))
         layout.add_widget(reset_hs)
 
-        reset_balls = styled_btn('Reset Ball Count',
-                                 bg=(0.45, 0.10, 0.55, 1))
+        reset_balls = make_btn('Reset Ball Count',
+                               (0.45, 0.10, 0.55, 1))
         reset_balls.bind(on_press=lambda *_: save_ball_count(1))
         layout.add_widget(reset_balls)
 
         layout.add_widget(Label(
             text='Ball Color', font_size='18sp',
-            color=(0.8, 0.8, 0.8, 1), size_hint=(1, None), height=36,
+            color=(0.8, 0.8, 0.8, 1),
+            size_hint=(1, None), height=36,
         ))
 
         color_row = BoxLayout(spacing=10, size_hint=(1, None), height=52)
-        ball_colors = [
+        for name, clr in [
             ('Orange', (1.00, 0.55, 0.10, 1)),
             ('Cyan',   (0.20, 0.85, 0.95, 1)),
             ('White',  (0.95, 0.95, 0.95, 1)),
             ('Pink',   (0.95, 0.35, 0.65, 1)),
-        ]
-        for name, clr in ball_colors:
-            b = styled_btn(name, font_size='15sp', bg=clr,
-                           size_hint=(1, None), height=52)
+        ]:
+            b = make_btn(name, clr, font_size='15sp',
+                         size_hint=(1, None), height=52)
             b.bind(on_press=lambda btn, c=clr: self._set_color(c))
             color_row.add_widget(b)
         layout.add_widget(color_row)
@@ -180,37 +170,115 @@ class SettingsScreen(Screen):
         config.C_BALL = color
 
 
+# ── Game Over Screen ──────────────────────────────────────────────────────────
+
+class GameOverScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        root = FloatLayout()
+        with root.canvas.before:
+            Color(0.04, 0.07, 0.18, 0.97)
+            self._bg = Rectangle(pos=root.pos, size=root.size)
+        root.bind(
+            pos=lambda w, v: setattr(self._bg, 'pos', v),
+            size=lambda w, v: setattr(self._bg, 'size', v),
+        )
+
+        panel = BoxLayout(
+            orientation='vertical', padding=30, spacing=16,
+            size_hint=(0.82, 0.65),
+            pos_hint={'center_x': 0.5, 'center_y': 0.5},
+        )
+        with panel.canvas.before:
+            Color(0.06, 0.10, 0.28, 1)
+            self._panel_bg = RoundedRectangle(
+                pos=panel.pos, size=panel.size, radius=[20])
+        panel.bind(
+            pos=lambda w, v: setattr(self._panel_bg, 'pos', v),
+            size=lambda w, v: setattr(self._panel_bg, 'size', v),
+        )
+
+        panel.add_widget(Label(
+            text='GAME OVER',
+            font_size='36sp', bold=True,
+            color=(0.95, 0.20, 0.20, 1),
+        ))
+
+        self.score_label = Label(
+            text='Score: 0', font_size='26sp', color=(1, 1, 1, 1))
+        self.hs_label = Label(
+            text='Best: 0', font_size='20sp',
+            color=(0.95, 0.85, 0.10, 1))
+        panel.add_widget(self.score_label)
+        panel.add_widget(self.hs_label)
+
+        self.watch_btn = make_btn(
+            'Watch Ad to Continue',
+            (0.10, 0.55, 0.15, 1), height=56)
+        self.watch_btn.bind(on_press=self._watch_ad)
+        panel.add_widget(self.watch_btn)
+
+        restart_btn = make_btn('Restart', (0.25, 0.25, 0.35, 1))
+        restart_btn.bind(on_press=self._restart)
+        panel.add_widget(restart_btn)
+
+        menu_btn = make_btn('Main Menu', C_BTN_DARK)
+        menu_btn.bind(on_press=lambda *_: setattr(
+            self.manager, 'current', 'home'))
+        panel.add_widget(menu_btn)
+
+        root.add_widget(panel)
+        self.add_widget(root)
+
+    def setup(self, score: int):
+        self.score_label.text = f'Score: {score}'
+        self.hs_label.text    = f'Best: {load_high_score()}'
+        self.watch_btn.text     = 'Watch Ad to Continue'
+        self.watch_btn.disabled = False
+
+    def _restart(self, *_):
+        gs = self.manager.get_screen('game')
+        gs.restart()
+        self.manager.current = 'game'
+
+    def _watch_ad(self, *_):
+        self.watch_btn.text     = 'Watching ad...  5'
+        self.watch_btn.disabled = True
+        self._countdown = 5
+        Clock.schedule_interval(self._ad_tick, 1)
+
+    def _ad_tick(self, dt):
+        self._countdown -= 1
+        if self._countdown <= 0:
+            Clock.unschedule(self._ad_tick)
+            gs = self.manager.get_screen('game')
+            gs.continue_after_ad()
+            self.manager.current = 'game'
+        else:
+            self.watch_btn.text = f'Watching ad...  {self._countdown}'
+
+
 # ── Game Screen ───────────────────────────────────────────────────────────────
 
 class GameScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # Game state
-        self._grid      = None
-        self._balls     = []
-        self._cannon    = Cannon()
-        self._score     = 0
-        self._ball_count= 1
-        self._aim_angle = 270.0
-        self._state     = 'aiming'   # aiming | shooting
-        self._paused    = False
-        self._over      = False
+        self._grid       = None
+        self._balls      = []
+        self._cannon     = Cannon()
+        self._score      = 0
+        self._ball_count = 1
+        self._aim_angle  = 270.0
+        self._state      = 'aiming'
+        self._paused     = False
 
-        # ── Root layout ───────────────────────────────────────────────────────
-        self._root = FloatLayout()
+        main = BoxLayout(orientation='vertical')
 
-        # ── Main game column ──────────────────────────────────────────────────
-        main = BoxLayout(
-            orientation='vertical',
-            size_hint=(1, 1),
-            pos_hint={'x': 0, 'y': 0},
-        )
-
-        # Top HUD
-        top_hud = BoxLayout(
-            size_hint=(1, None), height=54, padding=(12, 6), spacing=6,
-        )
+        # ── Top HUD ───────────────────────────────────────────────────────────
+        top_hud = BoxLayout(size_hint=(1, None), height=54,
+                            padding=(12, 6), spacing=6)
         with top_hud.canvas.before:
             Color(*C_HUD_BG)
             self._hud_bg = Rectangle(pos=top_hud.pos, size=top_hud.size)
@@ -229,9 +297,9 @@ class GameScreen(Screen):
             color=(1, 1, 1, 1),
             halign='center', size_hint=(0.4, 1),
         )
-        self.pause_btn = styled_btn(
-            'II', font_size='18sp', bold=True,
-            bg=(0.15, 0.20, 0.55, 1),
+        self.pause_btn = make_btn(
+            'II', (0.15, 0.20, 0.55, 1),
+            font_size='18sp', bold=True,
             size_hint=(0.25, 1), height=54,
         )
         self.pause_btn.bind(on_press=self._toggle_pause)
@@ -240,22 +308,20 @@ class GameScreen(Screen):
         top_hud.add_widget(self.pause_btn)
         main.add_widget(top_hud)
 
-        # Game canvas
-        self.gw = GameWidget(size_hint=(1, 1))
+        # ── Game widget ───────────────────────────────────────────────────────
+        self.gw = GameWidget()
         self.gw.on_angle_update  = self._on_aim_update
         self.gw.on_angle_release = self._on_aim_release
         main.add_widget(self.gw)
 
-        # Bottom HUD
-        bot_hud = BoxLayout(
-            size_hint=(1, None), height=46, padding=(12, 6),
-        )
+        # ── Bottom HUD ────────────────────────────────────────────────────────
+        bot_hud = BoxLayout(size_hint=(1, None), height=46, padding=(12, 6))
         with bot_hud.canvas.before:
             Color(*C_HUD_BG)
-            self._bhud_bg = Rectangle(pos=bot_hud.pos, size=bot_hud.size)
+            self._bhud = Rectangle(pos=bot_hud.pos, size=bot_hud.size)
         bot_hud.bind(
-            pos=lambda w, v: setattr(self._bhud_bg, 'pos', v),
-            size=lambda w, v: setattr(self._bhud_bg, 'size', v),
+            pos=lambda w, v: setattr(self._bhud, 'pos', v),
+            size=lambda w, v: setattr(self._bhud, 'size', v),
         )
         self.wave_label = Label(
             text='Wave 1', font_size='17sp',
@@ -271,86 +337,22 @@ class GameScreen(Screen):
         bot_hud.add_widget(self.info_label)
         main.add_widget(bot_hud)
 
-        self._root.add_widget(main)
-
-        # ── Game Over overlay ─────────────────────────────────────────────────
-        self._overlay = FloatLayout(
-            size_hint=(1, 1),
-            pos_hint={'x': 0, 'y': 0},
-        )
-        self._overlay.opacity  = 0
-        self._overlay.disabled = True   # invisible = no touch interception
-
-        # Semi-transparent backdrop
-        self._backdrop = Widget(size_hint=(1, 1))
-        with self._backdrop.canvas:
-            Color(0, 0, 0, 0.7)
-            self._bd_rect = Rectangle(
-                pos=self._backdrop.pos, size=self._backdrop.size)
-        self._backdrop.bind(
-            pos=lambda w, v: setattr(self._bd_rect, 'pos', v),
-            size=lambda w, v: setattr(self._bd_rect, 'size', v),
-        )
-        self._overlay.add_widget(self._backdrop)
-
-        # Panel
-        panel = BoxLayout(
-            orientation='vertical', padding=28, spacing=14,
-            size_hint=(0.80, 0.60),
-            pos_hint={'center_x': 0.5, 'center_y': 0.5},
-        )
-        with panel.canvas.before:
-            Color(0.06, 0.10, 0.25, 0.97)
-            self._panel_bg = RoundedRectangle(
-                pos=panel.pos, size=panel.size, radius=[18])
-        panel.bind(
-            pos=lambda w, v: setattr(self._panel_bg, 'pos', v),
-            size=lambda w, v: setattr(self._panel_bg, 'size', v),
-        )
-
-        panel.add_widget(Label(
-            text='GAME OVER', font_size='34sp', bold=True,
-            color=(0.95, 0.20, 0.20, 1),
-        ))
-        self._over_score = Label(text='', font_size='24sp', color=(1,1,1,1))
-        self._over_hs    = Label(text='', font_size='18sp',
-                                 color=(0.95, 0.85, 0.10, 1))
-        panel.add_widget(self._over_score)
-        panel.add_widget(self._over_hs)
-
-        self._watch_btn = styled_btn(
-            'Watch Ad to Continue', font_size='18sp',
-            bg=(0.10, 0.55, 0.15, 1),
-        )
-        self._watch_btn.bind(on_press=self._watch_ad)
-        panel.add_widget(self._watch_btn)
-
-        restart_btn = styled_btn('Restart', bg=(0.30, 0.30, 0.35, 1))
-        restart_btn.bind(on_press=lambda *_: self._start_new_game())
-        panel.add_widget(restart_btn)
-
-        menu_btn = styled_btn('Main Menu', bg=C_BTN_DARK)
-        menu_btn.bind(on_press=lambda *_: setattr(
-            self.manager, 'current', 'home'))
-        panel.add_widget(menu_btn)
-
-        self._overlay.add_widget(panel)
-        self._root.add_widget(self._overlay)
-
-        self.add_widget(self._root)
+        self.add_widget(main)
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     def on_pre_enter(self, *_):
-        self._start_new_game()
+        if self._grid is None:
+            self._init_game()
+        Clock.unschedule(self._tick)
         Clock.schedule_interval(self._tick, 1 / 60)
 
     def on_leave(self, *_):
         Clock.unschedule(self._tick)
 
-    # ── New game ──────────────────────────────────────────────────────────────
+    # ── Game init ─────────────────────────────────────────────────────────────
 
-    def _start_new_game(self):
+    def _init_game(self):
         self._grid       = Grid()
         self._grid.add_new_row()
         self._balls      = []
@@ -358,38 +360,39 @@ class GameScreen(Screen):
         self._ball_count = load_ball_count()
         self._state      = 'aiming'
         self._paused     = False
-        self._over       = False
-        self._hide_overlay()
         self.pause_btn.text  = 'II'
         self.info_label.text = 'Tap anywhere to shoot'
         self._refresh_hud()
         self._draw()
-        # Reschedule if we were previously unscheduled
+
+    def restart(self):
+        """Called from GameOverScreen restart button."""
+        self._grid = None
+        self._balls = []
+        self._init_game()
         Clock.unschedule(self._tick)
         Clock.schedule_interval(self._tick, 1 / 60)
 
-    # ── Overlay helpers ───────────────────────────────────────────────────────
-
-    def _show_overlay(self):
-        self._overlay.opacity  = 1
-        self._overlay.disabled = False
-
-    def _hide_overlay(self):
-        self._overlay.opacity  = 0
-        self._overlay.disabled = True
+    def continue_after_ad(self):
+        """Called from GameOverScreen after watching ad."""
+        self._state  = 'aiming'
+        self._paused = False
+        self._balls  = []
+        self.info_label.text = 'Tap anywhere to shoot'
+        Clock.unschedule(self._tick)
+        Clock.schedule_interval(self._tick, 1 / 60)
+        self._draw()
 
     # ── Pause ─────────────────────────────────────────────────────────────────
 
     def _toggle_pause(self, *_):
-        if self._over:
-            return
         self._paused = not self._paused
         self.pause_btn.text = '>' if self._paused else 'II'
 
-    # ── Main game loop ────────────────────────────────────────────────────────
+    # ── Game loop ─────────────────────────────────────────────────────────────
 
     def _tick(self, dt):
-        if self._paused or self._over:
+        if self._paused:
             return
 
         self._grid.tick(dt)
@@ -408,7 +411,6 @@ class GameScreen(Screen):
             self._draw()
 
     def _cannon_pos(self):
-        """Cannon sits at top-centre of the grid."""
         cell   = min(self.gw.width / GRID_COLS, self.gw.height / GRID_ROWS)
         grid_w = cell * GRID_COLS
         grid_h = cell * GRID_ROWS
@@ -418,41 +420,31 @@ class GameScreen(Screen):
         cell   = min(self.gw.width / GRID_COLS, self.gw.height / GRID_ROWS)
         grid_w = cell * GRID_COLS
         grid_h = cell * GRID_ROWS
-        sub_dt = dt / SUB_STEPS
 
         for ball in self._balls:
             if not ball.alive:
                 continue
 
-            hit_this_frame = False
+            # Use swept collision — pass blocks dict directly
+            col, row = ball.move(dt, grid_w, grid_h, cell,
+                                 self._grid.blocks)
 
-            for _ in range(SUB_STEPS):
-                col, row = ball.step(sub_dt, grid_w, grid_h, cell)
+            if not ball.alive:
+                continue
 
-                if not ball.alive:
-                    break
+            if col is not None:
+                destroyed, is_pu = self._grid.hit_block(col, row)
+                if is_pu:
+                    self._ball_count += 1
+                    save_ball_count(self._ball_count)
+                else:
+                    self._score += 1
 
-                if hit_this_frame:
-                    continue   # only one block hit per frame per ball
+                if self._grid.is_game_over():
+                    self._trigger_game_over()
+                    return
 
-                block = self._grid.get_block(col, row)
-                if block:
-                    destroyed, is_pu = self._grid.hit_block(col, row)
-
-                    if is_pu:
-                        self._ball_count += 1
-                        save_ball_count(self._ball_count)
-                    else:
-                        self._score += 1
-
-                    ball.bounce_off_block(col, row, cell)
-                    hit_this_frame = True
-
-                    if self._grid.is_game_over():
-                        self._trigger_game_over()
-                        return
-
-            self._refresh_hud()
+        self._refresh_hud()
 
     def _end_round(self):
         self._grid.add_new_row()
@@ -469,47 +461,21 @@ class GameScreen(Screen):
         self._draw()
 
     def _trigger_game_over(self):
-        self._over = True
         Clock.unschedule(self._tick)
         save_high_score(self._score)
-        self._over_score.text = f'Score: {self._score}'
-        self._over_hs.text    = f'Best:  {load_high_score()}'
-        self._show_overlay()
-
-    # ── Watch Ad (simulated) ──────────────────────────────────────────────────
-
-    def _watch_ad(self, *_):
-        self._watch_btn.text     = 'Watching ad...  5'
-        self._watch_btn.disabled = True
-        self._ad_count           = 5
-        Clock.schedule_interval(self._ad_tick, 1)
-
-    def _ad_tick(self, dt):
-        self._ad_count -= 1
-        if self._ad_count <= 0:
-            Clock.unschedule(self._ad_tick)
-            self._watch_btn.text     = 'Watch Ad to Continue'
-            self._watch_btn.disabled = False
-            self._hide_overlay()
-            self._over   = False
-            self._state  = 'aiming'
-            self._paused = False
-            self._balls  = []
-            self.info_label.text = 'Tap anywhere to shoot'
-            Clock.schedule_interval(self._tick, 1 / 60)
-            self._draw()
-        else:
-            self._watch_btn.text = f'Watching ad...  {self._ad_count}'
+        go = self.manager.get_screen('gameover')
+        go.setup(self._score)
+        self.manager.current = 'gameover'
 
     # ── Input ─────────────────────────────────────────────────────────────────
 
     def _on_aim_update(self, angle):
-        if self._state == 'aiming' and not self._paused and not self._over:
+        if self._state == 'aiming' and not self._paused:
             self._aim_angle = angle
             self._draw()
 
     def _on_aim_release(self, angle):
-        if self._state != 'aiming' or self._paused or self._over:
+        if self._state != 'aiming' or self._paused:
             return
         self._aim_angle      = angle
         self._state          = 'shooting'
